@@ -1,0 +1,13 @@
+[package]
+name = "kon"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+kon-parser = { path = "./crates/kon-parser" }
+
+
+[workspace]
+members = [
+    "crates/kon-parser"
+]
