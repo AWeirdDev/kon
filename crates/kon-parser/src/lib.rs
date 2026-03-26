@@ -149,6 +149,7 @@ pub enum Expr {
         body: Box<ClosureBody>,
     },
     Block(Block),
+    VoidBlock(Block),
     Macro {
         name: String,
         args: Vec<MacroArg>,
@@ -527,7 +528,8 @@ peg::parser! {
             = exprs:(expr() ** (_ "," _)) _ ","? { exprs }
 
         rule primary_expr() -> Expr
-            = if_expr()
+            = void_expr()
+            / if_expr()
             / while_expr()
             / match_expr()
             / closure_expr()
@@ -669,6 +671,9 @@ peg::parser! {
         rule block_stmt() -> BlockItem
             = s:statement() _ { BlockItem::Statement(s) }
             / i:item() _ { BlockItem::Item(i) }
+
+        rule void_expr() -> Expr
+            = "void" _ b:block() { Expr::VoidBlock(b) }
 
 
         rule trail_expr() -> Box<Expr>
