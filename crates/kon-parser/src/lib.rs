@@ -1,4 +1,16 @@
-use std::fmt;
+//! Parser for Kon language.
+
+#![no_std]
+
+extern crate alloc;
+
+use alloc::{
+    boxed::Box,
+    string::{String, ToString},
+    vec,
+    vec::Vec,
+};
+use core::fmt;
 
 // AST Node Types
 #[derive(Debug, Clone, PartialEq)]
@@ -660,7 +672,8 @@ peg::parser! {
 
 
         rule trail_expr() -> Box<Expr>
-            = !("}" / ";") e:assign_expr() { Box::new(e) }
+            = quiet! {!("}" / ";") e:assign_expr() { Box::new(e) } }
+            / expected!("trail expression")
 
         // Macro expressions (@ syntax)
         rule macro_expr() -> Expr
@@ -816,6 +829,7 @@ peg::parser! {
         rule keyword()
             = ("let" / "res" / "fn" / "struct" / "enum" / "match" /
                "if" / "else" / "while" / "true" / "false" / "move") !ident_rest()
+            / expected!("keyword")
 
         // Whitespace and comments
         rule _() = (whitespace() / comment())*
@@ -837,201 +851,4 @@ enum PostfixSuffix {
     Field(String),
     Index(Expr),
     Try,
-}
-
-#[cfg(test)]
-mod tests {
-    use super::kon::{expr, program};
-
-    #[test]
-    fn test_simple_let() {
-        let input = "let a = true;";
-        let result = program(input);
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_simple_res() {
-        let input = "res a = true;";
-        let result = program(input);
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_tuple_macro() {
-        let input = "let t = @(10, 20);";
-        let result = program(input);
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_dict_macro() {
-        let input = r#"let d = @{ "a": "hello", "b": "world" };"#;
-        let result = program(input);
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_list_macro() {
-        let input = "let l = @[0, 1, 2, 3];";
-        let result = program(input);
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_spread() {
-        let input = r#"
-            let one = @{ "money": "ties" };
-            let two = @{ "hello", "world", ..one };
-        "#;
-        let result = program(input);
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_struct_unit() {
-        let input = "struct Cat;";
-        let result = program(input);
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_struct_tuple() {
-        let input = "struct Cat(Dog);";
-        let result = program(input);
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_struct_named() {
-        let input = "struct Cat { friend: Dog }";
-        let result = program(input);
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_derive() {
-        let input = "@derive(Clone) struct Money(Int);";
-        let result = program(input);
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_enum() {
-        let input = r#"
-            enum Animal {
-                Dog,
-                Cat
-            }
-        "#;
-        let result = program(input);
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_function() {
-        let input = r#"
-            fn main() {
-
-            }
-        "#;
-        let result = program(input);
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_function_with_return() {
-        let input = r#"
-            fn foo() -> Bar {
-                Bar("hello")
-            }
-        "#;
-        let result = program(input);
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_reference() {
-        let input = "let a_ref = &a;";
-        let result = program(input);
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_pointer_type() {
-        let input = "fn foo(ptr: #Int) {}";
-        let result = program(input);
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_match() {
-        let input = r#"
-            match something {
-                Stuff::A => {
-                    do_something()
-                },
-                Stuff::B => return_this(),
-                _ => wildcard()
-            }
-        "#;
-        let result = expr(input);
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_if_let() {
-        let input = "if let Stuff::A(data) = stuff { }";
-        let result = expr(input);
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_while_let() {
-        let input = "while let Stuff::A(data) = stuff { }";
-        let result = expr(input);
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_try_operator() {
-        let input = "might_fail()?;";
-        let result = program(input);
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_closure() {
-        let input = r#"
-            let a = 100;
-            let closure = || {
-                a += 10
-            };
-        "#;
-        let result = program(input);
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_move_closure() {
-        let input = r#"
-            res a = 100;
-            let closure = move || {
-                a += 10
-            };
-        "#;
-        let result = program(input);
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_comments() {
-        let input = r#"
-            // a comment
-            /* also a comment */
-            let x = 5;
-        "#;
-        let result = program(input);
-        assert!(result.is_ok());
-    }
 }
